@@ -117,6 +117,45 @@
     <script>
         const modelViewer = document.getElementById('model-viewer');
         const loadingOverlay = document.getElementById('loading');
+        const arButton = document.getElementById('ar-button');
+        
+        // 检测移动设备和浏览器
+        function isMobileDevice() {
+            return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+                   (navigator.maxTouchPoints && navigator.maxTouchPoints > 2 && /MacIntel/.test(navigator.platform));
+        }
+        
+        function isAndroid() {
+            return /Android/i.test(navigator.userAgent);
+        }
+        
+        function isIOS() {
+            return /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+                   (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+        }
+        
+        // 强制显示AR按钮（针对移动设备）
+        function forceShowARButton() {
+            if (isMobileDevice()) {
+                console.log('检测到移动设备，强制显示AR按钮');
+                arButton.style.display = 'block';
+                arButton.style.visibility = 'visible';
+                arButton.style.opacity = '1';
+                
+                // 添加点击事件处理
+                arButton.addEventListener('click', function() {
+                    console.log('AR按钮被点击');
+                    if (modelViewer.canActivateAR) {
+                        modelViewer.activateAR();
+                    } else {
+                        console.log('尝试手动触发AR');
+                        // 手动触发AR
+                        const arEvent = new CustomEvent('activate-ar');
+                        modelViewer.dispatchEvent(arEvent);
+                    }
+                });
+            }
+        }
         
         // 监听模型加载完成
         modelViewer.addEventListener('load', function() {
@@ -124,6 +163,8 @@
             // 隐藏加载遮罩
             setTimeout(function() {
                 loadingOverlay.classList.add('hidden');
+                // 强制显示AR按钮
+                forceShowARButton();
             }, 500);
         });
         
@@ -146,6 +187,21 @@
         // 页面加载完成
         document.addEventListener('DOMContentLoaded', function() {
             console.log('AR展示页面已就绪');
+            console.log('设备信息:', {
+                userAgent: navigator.userAgent,
+                isMobile: isMobileDevice(),
+                isAndroid: isAndroid(),
+                isIOS: isIOS(),
+                maxTouchPoints: navigator.maxTouchPoints
+            });
+            
+            // 延迟强制显示AR按钮
+            setTimeout(forceShowARButton, 1000);
+        });
+        
+        // Model Viewer 就绪后再次检查
+        modelViewer.addEventListener('model-visibility', function() {
+            setTimeout(forceShowARButton, 500);
         });
     </script>
 </body>
