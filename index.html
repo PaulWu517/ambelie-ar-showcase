@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ambelie 柜子</title>
+    <!-- 引入 Model Viewer -->
+    <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/4.0.0/model-viewer.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #f5f5f5;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        model-viewer {
+            width: 100%;
+            height: 100vh;
+            background: #f5f5f5;
+        }
+        
+        /* AR 按钮样式 */
+        #ar-button {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #007AFF;
+            color: white;
+            border: none;
+            padding: 16px 32px;
+            border-radius: 25px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 4px 20px rgba(0, 122, 255, 0.4);
+            transition: all 0.3s ease;
+            z-index: 1000;
+        }
+        
+        #ar-button:hover {
+            background: #0056CC;
+            transform: translateX(-50%) translateY(-2px);
+            box-shadow: 0 6px 25px rgba(0, 122, 255, 0.6);
+        }
+        
+        #ar-button:active {
+            transform: translateX(-50%) translateY(0px);
+        }
+        
+        /* 加载状态 */
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #f5f5f5;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 999;
+            transition: opacity 0.5s ease;
+        }
+        
+        .loading-overlay.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+        
+        .loading-text {
+            font-size: 18px;
+            color: #666;
+        }
+        
+        /* 移动端优化 */
+        @media (max-width: 768px) {
+            #ar-button {
+                bottom: 20px;
+                padding: 14px 28px;
+                font-size: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 加载遮罩 -->
+    <div class="loading-overlay" id="loading">
+        <div class="loading-text">正在加载模型...</div>
+    </div>
+    
+    <!-- Model Viewer 组件 -->
+    <model-viewer
+        id="model-viewer"
+        alt="Ambelie中式柜子"
+        src="https://ambelie-1368352639.cos.ap-guangzhou.myqcloud.com/guizi3%200917.glb"
+        camera-controls
+        touch-action="pan-y"
+        auto-rotate
+        ar
+        ar-modes="webxr scene-viewer quick-look"
+        environment-image="neutral"
+        exposure="1.0"
+        tone-mapping="neutral"
+        shadow-intensity="0.8"
+        loading="eager">
+        
+        <!-- 自定义 AR 按钮 -->
+        <button slot="ar-button" id="ar-button">
+            在您的空间中查看
+        </button>
+    </model-viewer>
+
+    <script>
+        const modelViewer = document.getElementById('model-viewer');
+        const loadingOverlay = document.getElementById('loading');
+        
+        // 监听模型加载完成
+        modelViewer.addEventListener('load', function() {
+            console.log('模型加载完成');
+            // 隐藏加载遮罩
+            setTimeout(function() {
+                loadingOverlay.classList.add('hidden');
+            }, 500);
+        });
+        
+        // 监听模型加载错误
+        modelViewer.addEventListener('error', function(event) {
+            console.error('模型加载失败:', event);
+            loadingOverlay.innerHTML = '<div class="loading-text" style="color: #ff4444;">模型加载失败，请检查网络连接</div>';
+        });
+        
+        // 监听 AR 状态
+        modelViewer.addEventListener('ar-status', function(event) {
+            console.log('AR状态:', event.detail.status);
+            if (event.detail.status === 'session-started') {
+                console.log('AR会话已启动');
+            } else if (event.detail.status === 'not-presenting') {
+                console.log('AR会话已结束');
+            }
+        });
+        
+        // 页面加载完成
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('AR展示页面已就绪');
+        });
+    </script>
+</body>
+</html>
