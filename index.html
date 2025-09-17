@@ -92,7 +92,35 @@
 <body>
     <!-- 加载遮罩 -->
     <div class="loading-overlay" id="loading">
-        <div class="loading-text">正在加载模型...</div>
+        <div class="loading-content">
+            <div class="loading-text" id="loading-text">正在加载模型...</div>
+            <div class="loading-progress" id="loading-progress" style="
+                width: 200px;
+                height: 4px;
+                background: #e0e0e0;
+                border-radius: 2px;
+                margin: 15px auto;
+                overflow: hidden;
+                display: none;
+            ">
+                <div class="progress-bar" id="progress-bar" style="
+                    width: 0%;
+                    height: 100%;
+                    background: #007AFF;
+                    border-radius: 2px;
+                    transition: width 0.3s ease;
+                "></div>
+            </div>
+            <div class="loading-tips" id="loading-tips" style="
+                font-size: 12px;
+                color: #999;
+                margin-top: 10px;
+                line-height: 1.4;
+            ">
+                首次加载可能需要1-3分钟<br>
+                请耐心等待...
+            </div>
+        </div>
     </div>
     
     <!-- Model Viewer 组件 -->
@@ -110,15 +138,10 @@
         tone-mapping="neutral"
         shadow-intensity="0.8"
         loading="eager">
-        
-        <!-- 自定义 AR 按钮 -->
-        <button slot="ar-button" id="ar-button">
-            在您的空间中查看
-        </button>
     </model-viewer>
 
-    <!-- 备用AR按钮 - 确保显示 -->
-    <button id="backup-ar-button" style="
+    <!-- 统一AR按钮 - 适用于所有环境 -->
+    <button id="universal-ar-button" style="
         position: fixed !important;
         bottom: 30px !important;
         left: 50% !important;
@@ -136,6 +159,7 @@
         display: block !important;
         visibility: visible !important;
         opacity: 1 !important;
+        transition: all 0.3s ease !important;
     ">
         在您的空间中查看
     </button>
@@ -143,8 +167,7 @@
     <script>
         const modelViewer = document.getElementById('model-viewer');
         const loadingOverlay = document.getElementById('loading');
-        const arButton = document.getElementById('ar-button');
-        const backupArButton = document.getElementById('backup-ar-button');
+        const universalArButton = document.getElementById('universal-ar-button');
         
         // 检测移动设备和浏览器
         function isMobileDevice() {
@@ -161,58 +184,184 @@
                    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
         }
         
-        // AR按钮点击处理
+        function isChrome() {
+            return /Chrome/i.test(navigator.userAgent) && !/Edge/i.test(navigator.userAgent);
+        }
+        
+        function isSafari() {
+            return /Safari/i.test(navigator.userAgent) && !/Chrome/i.test(navigator.userAgent);
+        }
+        
+        // AR兼容性检测
+        function checkARSupport() {
+            const isSupported = {
+                webxr: 'xr' in navigator && 'requestSession' in navigator.xr,
+                sceneViewer: isAndroid() && isChrome(),
+                quickLook: isIOS() && (isSafari() || isChrome()),
+                general: isMobileDevice()
+            };
+            
+            console.log('AR支持情况:', isSupported);
+            return isSupported;
+        }
+        
+        // 统一AR按钮点击处理
         function handleARClick() {
             console.log('AR按钮被点击');
-            if (modelViewer.canActivateAR) {
-                modelViewer.activateAR();
+            const arSupport = checkARSupport();
+            
+            if (arSupport.webxr || arSupport.sceneViewer || arSupport.quickLook) {
+                // 尝试激活AR
+                if (modelViewer.canActivateAR) {
+                    modelViewer.activateAR();
+                } else {
+                    console.log('尝试手动触发AR');
+                    const arEvent = new CustomEvent('activate-ar');
+                    modelViewer.dispatchEvent(arEvent);
+                }
             } else {
-                console.log('尝试手动触发AR');
-                // 手动触发AR
-                const arEvent = new CustomEvent('activate-ar');
-                modelViewer.dispatchEvent(arEvent);
+                // 不支持AR时的提示
+                alert('您的设备或浏览器暂不支持AR功能。\n\n支持AR的环境：\n• Android Chrome浏览器\n• iOS Safari浏览器\n• iOS Chrome浏览器');
             }
         }
         
-        // 强制显示AR按钮（针对所有环境）
-        function forceShowARButton() {
-            console.log('强制显示AR按钮 - 适用于所有环境');
+        // 加载进度和超时处理
+        let loadingStartTime = Date.now();
+        let loadingTimer = null;
+        let progressTimer = null;
+        
+        // 模拟加载进度
+        function updateLoadingProgress() {
+            const loadingText = document.getElementById('loading-text');
+            const loadingProgress = document.getElementById('loading-progress');
+            const progressBar = document.getElementById('progress-bar');
+            const loadingTips = document.getElementById('loading-tips');
             
-            // 处理原始AR按钮
-            if (arButton) {
-                arButton.style.display = 'block';
-                arButton.style.visibility = 'visible';
-                arButton.style.opacity = '1';
-                arButton.style.position = 'absolute';
-                arButton.style.bottom = '30px';
-                arButton.style.left = '50%';
-                arButton.style.transform = 'translateX(-50%)';
-                arButton.style.zIndex = '1000';
-                arButton.addEventListener('click', handleARClick);
+            const elapsed = (Date.now() - loadingStartTime) / 1000; // 秒
+            
+            // 显示进度条
+            if (elapsed > 5) {
+                loadingProgress.style.display = 'block';
+                const progress = Math.min(90, (elapsed - 5) / 180 * 90); // 3分钟内达到90%
+                progressBar.style.width = progress + '%';
             }
             
-            // 处理备用AR按钮
-            if (backupArButton) {
-                backupArButton.addEventListener('click', handleARClick);
-                console.log('备用AR按钮已设置点击事件');
+            // 更新提示文字
+            if (elapsed > 10) {
+                loadingText.textContent = '模型较大，正在努力加载中...';
+                loadingTips.innerHTML = '网络较慢时可能需要3-5分钟<br>建议切换到WiFi网络';
+            } else if (elapsed > 30) {
+                loadingText.textContent = '加载时间较长，请继续等待...';
+                loadingTips.innerHTML = '如果超过5分钟仍未加载<br>请尝试刷新页面或检查网络';
             }
+            
+            // 超时处理
+            if (elapsed > 300) { // 5分钟超时
+                clearInterval(progressTimer);
+                loadingText.textContent = '加载超时';
+                loadingTips.innerHTML = `
+                    <div style="color: #ff4444;">
+                        加载时间过长，可能的原因：<br>
+                        • 网络连接不稳定<br>
+                        • VPN影响访问速度<br>
+                        • 模型文件较大(${(25.5).toFixed(1)}MB)<br>
+                        <button onclick="location.reload()" style="
+                            margin-top: 10px;
+                            padding: 8px 16px;
+                            background: #007AFF;
+                            color: white;
+                            border: none;
+                            border-radius: 4px;
+                            cursor: pointer;
+                        ">重新加载</button>
+                    </div>
+                `;
+            }
+        }
+        
+        // 开始加载进度更新
+        function startLoadingProgress() {
+            loadingStartTime = Date.now();
+            progressTimer = setInterval(updateLoadingProgress, 1000);
+        }
+        
+        // 初始化AR按钮
+        function initializeARButton() {
+            console.log('初始化统一AR按钮');
+            const arSupport = checkARSupport();
+            
+            // 添加点击事件
+            universalArButton.addEventListener('click', handleARClick);
+            
+            // 根据支持情况调整按钮文字
+            if (!arSupport.general) {
+                universalArButton.textContent = '查看3D模型（需移动设备支持AR）';
+                universalArButton.style.fontSize = '14px';
+                universalArButton.style.padding = '12px 24px';
+            }
+            
+            console.log('AR按钮初始化完成');
         }
         
         // 监听模型加载完成
         modelViewer.addEventListener('load', function() {
             console.log('模型加载完成');
+            console.log('模型信息:', {
+                src: modelViewer.src,
+                loaded: true,
+                loadingTime: ((Date.now() - loadingStartTime) / 1000).toFixed(1) + '秒',
+                timestamp: new Date().toISOString(),
+                userAgent: navigator.userAgent
+            });
+            
+            // 清除进度定时器
+            if (progressTimer) {
+                clearInterval(progressTimer);
+            }
+            
             // 隐藏加载遮罩
             setTimeout(function() {
                 loadingOverlay.classList.add('hidden');
-                // 强制显示AR按钮
-                forceShowARButton();
+                // 初始化AR按钮
+                initializeARButton();
             }, 500);
         });
         
         // 监听模型加载错误
         modelViewer.addEventListener('error', function(event) {
             console.error('模型加载失败:', event);
-            loadingOverlay.innerHTML = '<div class="loading-text" style="color: #ff4444;">模型加载失败，请检查网络连接</div>';
+            console.error('错误详情:', {
+                type: event.type,
+                detail: event.detail,
+                target: event.target,
+                timestamp: new Date().toISOString()
+            });
+            
+            // 显示详细错误信息
+            loadingOverlay.innerHTML = `
+                <div style="text-align: center; padding: 20px;">
+                    <div class="loading-text" style="color: #ff4444; margin-bottom: 15px;">
+                        模型加载失败
+                    </div>
+                    <div style="font-size: 14px; color: #666; line-height: 1.5;">
+                        可能的解决方案：<br>
+                        • 检查网络连接是否稳定<br>
+                        • 尝试关闭VPN后重新加载<br>
+                        • 清除浏览器缓存后刷新<br>
+                        • 切换到移动网络(4G/5G)尝试<br>
+                        • 更换浏览器(Chrome/Safari)
+                    </div>
+                    <button onclick="location.reload()" style="
+                        margin-top: 15px;
+                        padding: 10px 20px;
+                        background: #007AFF;
+                        color: white;
+                        border: none;
+                        border-radius: 5px;
+                        cursor: pointer;
+                    ">重新加载</button>
+                </div>
+            `;
         });
         
         // 监听 AR 状态
@@ -228,24 +377,57 @@
         // 页面加载完成
         document.addEventListener('DOMContentLoaded', function() {
             console.log('AR展示页面已就绪');
-            console.log('设备信息:', {
+            
+            // 开始加载进度跟踪
+            startLoadingProgress();
+            
+            console.log('网络和设备信息:', {
                 userAgent: navigator.userAgent,
                 isMobile: isMobileDevice(),
                 isAndroid: isAndroid(),
                 isIOS: isIOS(),
-                maxTouchPoints: navigator.maxTouchPoints
+                isChrome: isChrome(),
+                isSafari: isSafari(),
+                maxTouchPoints: navigator.maxTouchPoints,
+                onLine: navigator.onLine,
+                connection: navigator.connection ? {
+                    effectiveType: navigator.connection.effectiveType,
+                    downlink: navigator.connection.downlink,
+                    rtt: navigator.connection.rtt
+                } : 'not available',
+                timestamp: new Date().toISOString(),
+                timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                language: navigator.language
             });
             
-            // 立即强制显示AR按钮
-            forceShowARButton();
-            // 延迟再次确保显示
-            setTimeout(forceShowARButton, 1000);
-            setTimeout(forceShowARButton, 3000);
-        });
-        
-        // Model Viewer 就绪后再次检查
-        modelViewer.addEventListener('model-visibility', function() {
-            setTimeout(forceShowARButton, 500);
+            // 测试腾讯云COS连接
+            console.log('开始测试模型文件连接...');
+            fetch('https://ambelie-1368352639.cos.ap-guangzhou.myqcloud.com/guizi3%200917.glb', {
+                method: 'HEAD',
+                mode: 'cors'
+            }).then(response => {
+                console.log('模型文件连接测试结果:', {
+                    status: response.status,
+                    statusText: response.statusText,
+                    headers: Object.fromEntries(response.headers.entries()),
+                    ok: response.ok,
+                    fileSize: response.headers.get('content-length') ? 
+                        (parseInt(response.headers.get('content-length')) / 1024 / 1024).toFixed(1) + 'MB' : 
+                        '未知大小'
+                });
+            }).catch(error => {
+                console.error('模型文件连接测试失败:', error);
+                console.error('可能的问题:', {
+                    cors: '跨域访问被阻止',
+                    network: '网络连接问题',
+                    vpn: 'VPN可能影响访问',
+                    dns: 'DNS解析问题',
+                    firewall: '防火墙或网络限制'
+                });
+            });
+            
+            // 立即初始化AR按钮
+            initializeARButton();
         });
     </script>
 </body>
