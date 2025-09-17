@@ -22,33 +22,36 @@
             background: #f5f5f5;
         }
         
-        /* AR 按钮样式 */
+        /* AR 按钮样式 - 强制显示在所有环境 */
         #ar-button {
-            position: absolute;
-            bottom: 30px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: #007AFF;
-            color: white;
-            border: none;
-            padding: 16px 32px;
-            border-radius: 25px;
-            font-size: 18px;
-            font-weight: 600;
-            cursor: pointer;
-            box-shadow: 0 4px 20px rgba(0, 122, 255, 0.4);
-            transition: all 0.3s ease;
-            z-index: 1000;
+            position: absolute !important;
+            bottom: 30px !important;
+            left: 50% !important;
+            transform: translateX(-50%) !important;
+            background: #007AFF !important;
+            color: white !important;
+            border: none !important;
+            padding: 16px 32px !important;
+            border-radius: 25px !important;
+            font-size: 18px !important;
+            font-weight: 600 !important;
+            cursor: pointer !important;
+            box-shadow: 0 4px 20px rgba(0, 122, 255, 0.4) !important;
+            transition: all 0.3s ease !important;
+            z-index: 1000 !important;
+            display: block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
         }
         
         #ar-button:hover {
-            background: #0056CC;
-            transform: translateX(-50%) translateY(-2px);
-            box-shadow: 0 6px 25px rgba(0, 122, 255, 0.6);
+            background: #0056CC !important;
+            transform: translateX(-50%) translateY(-2px) !important;
+            box-shadow: 0 6px 25px rgba(0, 122, 255, 0.6) !important;
         }
         
         #ar-button:active {
-            transform: translateX(-50%) translateY(0px);
+            transform: translateX(-50%) translateY(0px) !important;
         }
         
         /* 加载状态 */
@@ -79,9 +82,9 @@
         /* 移动端优化 */
         @media (max-width: 768px) {
             #ar-button {
-                bottom: 20px;
-                padding: 14px 28px;
-                font-size: 16px;
+                bottom: 20px !important;
+                padding: 14px 28px !important;
+                font-size: 16px !important;
             }
         }
     </style>
@@ -114,10 +117,34 @@
         </button>
     </model-viewer>
 
+    <!-- 备用AR按钮 - 确保显示 -->
+    <button id="backup-ar-button" style="
+        position: fixed !important;
+        bottom: 30px !important;
+        left: 50% !important;
+        transform: translateX(-50%) !important;
+        background: #007AFF !important;
+        color: white !important;
+        border: none !important;
+        padding: 16px 32px !important;
+        border-radius: 25px !important;
+        font-size: 18px !important;
+        font-weight: 600 !important;
+        cursor: pointer !important;
+        box-shadow: 0 4px 20px rgba(0, 122, 255, 0.4) !important;
+        z-index: 9999 !important;
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+    ">
+        在您的空间中查看
+    </button>
+
     <script>
         const modelViewer = document.getElementById('model-viewer');
         const loadingOverlay = document.getElementById('loading');
         const arButton = document.getElementById('ar-button');
+        const backupArButton = document.getElementById('backup-ar-button');
         
         // 检测移动设备和浏览器
         function isMobileDevice() {
@@ -134,26 +161,40 @@
                    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
         }
         
-        // 强制显示AR按钮（针对移动设备）
+        // AR按钮点击处理
+        function handleARClick() {
+            console.log('AR按钮被点击');
+            if (modelViewer.canActivateAR) {
+                modelViewer.activateAR();
+            } else {
+                console.log('尝试手动触发AR');
+                // 手动触发AR
+                const arEvent = new CustomEvent('activate-ar');
+                modelViewer.dispatchEvent(arEvent);
+            }
+        }
+        
+        // 强制显示AR按钮（针对所有环境）
         function forceShowARButton() {
-            if (isMobileDevice()) {
-                console.log('检测到移动设备，强制显示AR按钮');
+            console.log('强制显示AR按钮 - 适用于所有环境');
+            
+            // 处理原始AR按钮
+            if (arButton) {
                 arButton.style.display = 'block';
                 arButton.style.visibility = 'visible';
                 arButton.style.opacity = '1';
-                
-                // 添加点击事件处理
-                arButton.addEventListener('click', function() {
-                    console.log('AR按钮被点击');
-                    if (modelViewer.canActivateAR) {
-                        modelViewer.activateAR();
-                    } else {
-                        console.log('尝试手动触发AR');
-                        // 手动触发AR
-                        const arEvent = new CustomEvent('activate-ar');
-                        modelViewer.dispatchEvent(arEvent);
-                    }
-                });
+                arButton.style.position = 'absolute';
+                arButton.style.bottom = '30px';
+                arButton.style.left = '50%';
+                arButton.style.transform = 'translateX(-50%)';
+                arButton.style.zIndex = '1000';
+                arButton.addEventListener('click', handleARClick);
+            }
+            
+            // 处理备用AR按钮
+            if (backupArButton) {
+                backupArButton.addEventListener('click', handleARClick);
+                console.log('备用AR按钮已设置点击事件');
             }
         }
         
@@ -195,8 +236,11 @@
                 maxTouchPoints: navigator.maxTouchPoints
             });
             
-            // 延迟强制显示AR按钮
+            // 立即强制显示AR按钮
+            forceShowARButton();
+            // 延迟再次确保显示
             setTimeout(forceShowARButton, 1000);
+            setTimeout(forceShowARButton, 3000);
         });
         
         // Model Viewer 就绪后再次检查
